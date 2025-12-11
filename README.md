@@ -11,8 +11,9 @@ This project serves as a proof-of-concept for **Edge Perception Architectures**.
 
 ## 📸 System Dashboard
 
-<img width="461" height="845" alt="image" src="https://github.com/user-attachments/assets/9f190e64-59df-4395-8cd5-d5fc2aef2d59" />
-<img width="456" height="842" alt="image" src="https://github.com/user-attachments/assets/ad932b63-290e-42fb-aeaa-4f91b8ce4b8e" />
+<img width="272" height="500" alt="image" src="https://github.com/user-attachments/assets/9f190e64-59df-4395-8cd5-d5fc2aef2d59" />
+<img width="272" height="500" alt="image" src="https://github.com/user-attachments/assets/56a19b62-02f2-4fed-bcbd-51912668d14d" />
+<img width="272" height="500" alt="image" src="https://github.com/user-attachments/assets/ad932b63-290e-42fb-aeaa-4f91b8ce4b8e" />
 
 
 
