@@ -1,17 +1,10 @@
 #include "FrameProcessor.h"
-
 #include <QDebug>
-#include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 
-FrameProcessor::FrameProcessor(QObject *parent)
-    : QObject(parent)
-{
-}
+FrameProcessor::FrameProcessor(QObject *parent) : QObject(parent) {}
 
-QVideoSink* FrameProcessor::videoSink() const {
-    return m_sink;
-}
+QVideoSink* FrameProcessor::videoSink() const { return m_sink; }
 
 void FrameProcessor::setVideoSink(QVideoSink* sink) {
     if (m_sink == sink) return;
@@ -20,49 +13,88 @@ void FrameProcessor::setVideoSink(QVideoSink* sink) {
     emit videoSinkChanged();
 }
 
+bool FrameProcessor::active() const { return m_active; }
+void FrameProcessor::setActive(bool active) {
+    if (m_active == active) return;
+    m_active = active;
+
+    // Reset state when disabling
+    if (!m_active) {
+        m_motionLevel = 0.0;
+        emit motionEnergyChanged();
+        m_prevFrame.release(); // Free memory
+    }
+    emit activeChanged();
+}
+
+double FrameProcessor::motionEnergy() const { return m_motionLevel; }
+
+void FrameProcessor::setLoggingEnabled(bool enabled) {
+    if (m_loggingEnabled == enabled) return;
+    m_loggingEnabled = enabled;
+    emit loggingEnabledChanged();
+}
+
 void FrameProcessor::processFrame(const QVideoFrame& frame) {
-    static int frameCount = 0;
-    // Log every 60th frame to keep console readable
-    if (frameCount++ % 60 != 0) return;
+    // 1. SILENCER CHECK: If inactive, do absolutely nothing. Zero CPU usage.
+    if (!m_active) return;
 
     if (!frame.isValid()) return;
 
+    // Map Hardware Buffer
     QVideoFrame clone = frame;
-
     if (clone.map(QVideoFrame::ReadOnly)) {
 
-        QVideoFrameFormat::PixelFormat fmt = clone.pixelFormat();
+        // Android Camera usually outputs NV12 or NV21.
+        // Both have the Y-Plane (Luma) at the start, which is all we need for motion.
+        if (clone.pixelFormat() == QVideoFrameFormat::Format_NV12 ||
+            clone.pixelFormat() == QVideoFrameFormat::Format_NV21) {
 
-        // Android HALs usually output NV21 (Legacy) or NV12 (Modern).
-        // For Luma extraction, the memory layout of Plane 0 is identical.
-        if (fmt == QVideoFrameFormat::Format_NV21 ||
-            fmt == QVideoFrameFormat::Format_NV12) {
+            // 2. Wrap Y-Plane (Zero Copy)
+            cv::Mat currentY(clone.height(), clone.width(), CV_8UC1,
+                             (void*)clone.bits(0), clone.bytesPerLine(0));
 
-            // 1. Wrap the Y-Plane (Luma) in a cv::Mat. ZERO COPY.
-            // NV21/NV12 Structure:
-            // [ Y Plane (Width x Height) ] <-- We are looking here
-            // [ UV Plane (Width x Height / 2) ]
+            // 3. OPTIMIZATION: Downscale
+            // Processing 1080p is slow. 320x240 is fast.
+            cv::Mat smallFrame;
+            // Calculate aspect-ratio correct scale
+            double scale = 320.0 / clone.width();
+            cv::resize(currentY, smallFrame, cv::Size(), scale, scale, cv::INTER_LINEAR);
 
-            cv::Mat yPlane(clone.height(), clone.width(), CV_8UC1,
-                           (void*)clone.bits(0), clone.bytesPerLine(0));
+            // 4. Motion Detection Logic
+            if (!m_prevFrame.empty()) {
+                cv::Mat diff;
+                cv::absdiff(smallFrame, m_prevFrame, diff);
+                cv::threshold(diff, diff, 30, 255, cv::THRESH_BINARY);
 
-            // 2. Simple CV Operation: Calculate average brightness
-            // This proves we have read access to the hardware buffer
-            cv::Scalar meanVal = cv::mean(yPlane);
+                int changedPixels = cv::countNonZero(diff);
+                double newEnergy = (double)changedPixels / (diff.rows * diff.cols);
 
-            const char* fmtStr = (fmt == QVideoFrameFormat::Format_NV21) ? "NV21" : "NV12";
+                // Update UI property
+                // Smooth the value slightly for better visuals (Simple Low Pass Filter)
+                m_motionLevel = (m_motionLevel * 0.7) + (newEnergy * 0.3);
+                emit motionEnergyChanged();
 
-            qDebug() << "[System] Frame:" << frame.width() << "x" << frame.height()
-                     << "| Format:" << fmtStr
-                     << "| Handle:" << frame.handleType()
-                     << "| Avg Luma:" << meanVal[0];
+                // Log only if significant motion (Reduce spam) & logging is enabled
+                if (m_loggingEnabled && newEnergy > 0.05) {
+                    qDebug() << "[Sentry] Motion Detected:" << newEnergy;
+                }
+            }
+
+            // --- SYSTEM STATS LOGIC ---
+            // Only calculate and print Luma stats if Logging is Enabled
+            // This saves console spam
+            static int frameCount = 0;
+            if (m_loggingEnabled && frameCount++ % 60 == 0) {
+                cv::Scalar meanVal = cv::mean(currentY); // Only calc if needed
+                qDebug() << "[System] Frame:" << frame.width() << "x" << frame.height()
+                         << "| Avg Luma:" << meanVal[0]
+                         << "| Handle:" << frame.handleType();
+            }
+
+            // Store for next frame (Deep Copy required)
+            smallFrame.copyTo(m_prevFrame);
         }
-        else {
-            qDebug() << "[System] Unhandled Format:" << fmt;
-        }
-
         clone.unmap();
-    } else {
-        qDebug() << "[System] Failed to map hardware buffer. (Secure Memory?)";
     }
 }

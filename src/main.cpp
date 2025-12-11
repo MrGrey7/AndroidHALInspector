@@ -2,6 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QDirIterator>
 #include <QDebug>
+#include <QStringLiteral>
 #include "FrameProcessor.h"
 
 int main(int argc, char *argv[])
@@ -20,7 +21,7 @@ int main(int argc, char *argv[])
     qmlRegisterType<FrameProcessor>("com.systems.inspector", 1, 0, "FrameProcessor");
 
     QQmlApplicationEngine engine;
-    // URI "com.mrgrey.systems" + File "Main.qml" becomes:
+    // URI "com.systems.inspector" + File "Main.qml" becomes:
     const QUrl url(u"qrc:/com/systems/inspector/content/Main.qml"_qs);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [url](QObject *obj, const QUrl &objUrl) {

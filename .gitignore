@@ -100,3 +100,4 @@ android/gradle/
 android/res/
 android/gradle*
 android/*.gradle
+*.keystore
