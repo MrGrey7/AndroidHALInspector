@@ -1,8 +1,13 @@
 #include "FrameProcessor.h"
 #include <QDebug>
+#include <QDir>
+#include <QStandardPaths>
+#include <QFile>
 #include <opencv2/imgproc.hpp>
 
-FrameProcessor::FrameProcessor(QObject *parent) : QObject(parent) {}
+FrameProcessor::FrameProcessor(QObject *parent) : QObject(parent) {
+    setActive(true);
+}
 
 QVideoSink* FrameProcessor::videoSink() const { return m_sink; }
 
@@ -17,6 +22,10 @@ bool FrameProcessor::active() const { return m_active; }
 void FrameProcessor::setActive(bool active) {
     if (m_active == active) return;
     m_active = active;
+
+    if (m_active && !m_classifierLoaded) {
+        loadClassifier();
+    }
 
     // Reset state when disabling
     if (!m_active) {
@@ -61,6 +70,28 @@ void FrameProcessor::processFrame(const QVideoFrame& frame) {
             double scale = 320.0 / clone.width();
             cv::resize(currentY, smallFrame, cv::Size(), scale, scale, cv::INTER_LINEAR);
 
+
+            // 3. Equalize Histogram (Improves detection in bad lighting)
+            cv::equalizeHist(smallFrame, smallFrame);
+
+            // 4. Detect Faces
+            std::vector<cv::Rect> faces;
+            if (m_classifierLoaded) {
+                // scaleFactor=1.1, minNeighbors=3, minSize=30x30
+                m_faceClassifier.detectMultiScale(smallFrame, faces, 1.1, 3, 0, cv::Size(30, 30));
+            }
+
+            // 5. Update UI
+            if (m_facesDetected != faces.size()) {
+                m_facesDetected = faces.size();
+                emit facesDetectedChanged();
+                if (m_loggingEnabled && m_facesDetected > 0) {
+                    qDebug() << "[Sentry] Faces Detected:" << m_facesDetected;
+                }
+            }
+
+
+
             // 4. Motion Detection Logic
             if (!m_prevFrame.empty()) {
                 cv::Mat diff;
@@ -96,5 +127,48 @@ void FrameProcessor::processFrame(const QVideoFrame& frame) {
             smallFrame.copyTo(m_prevFrame);
         }
         clone.unmap();
+    }
+}
+
+void FrameProcessor::loadClassifier() {
+    if (m_classifierLoaded) return;
+
+    // 1. Define the internal path (Inside APK)
+    // Note: The path depends on your CMake resource structure.
+    // It usually matches the source path structure.
+    QString resourcePath = ":/com/systems/inspector/content/assets/haarcascade_frontalface_default.xml";
+
+
+    // 2. Define the target path (App Private Storage)
+    QString targetPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                         + "/haarcascade_frontalface_default.xml";
+
+    // Ensure directory exists
+    QDir dir = QFileInfo(targetPath).absoluteDir();
+    if (!dir.exists()) dir.mkpath(".");
+
+    // 3. COPY System: Extract if not exists or if size differs (Update)
+    QFile resourceFile(resourcePath);
+    if (!resourceFile.exists()) {
+        qWarning() << "[System] Model file NOT FOUND in resources:" << resourcePath;
+        return;
+    }
+
+    // Always try to copy to ensure we have the file on disk
+    if (QFile::exists(targetPath)) QFile::remove(targetPath);
+
+    if (resourceFile.copy(targetPath)) {
+        // 4. Set permissions so OpenCV can read it
+        QFile::setPermissions(targetPath, QFile::ReadOwner | QFile::WriteOwner);
+
+        // 5. Initialize OpenCV with the REAL file path
+        if (m_faceClassifier.load(targetPath.toStdString())) {
+            m_classifierLoaded = true;
+            qDebug() << "[System] Face Classifier loaded successfully from:" << targetPath;
+        } else {
+            qWarning() << "[System] OpenCV failed to load XML from:" << targetPath;
+        }
+    } else {
+        qWarning() << "[System] Failed to copy model to cache:" << targetPath;
     }
 }

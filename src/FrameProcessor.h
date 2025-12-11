@@ -4,7 +4,8 @@
 #include <QObject>
 #include <QVideoSink>
 #include <QVideoFrame>
-#include <opencv2/core.hpp> // Keep OpenCV types in header if used as members
+#include <opencv2/objdetect.hpp>
+#include <opencv2/core.hpp>
 
 class FrameProcessor : public QObject {
     Q_OBJECT
@@ -14,6 +15,7 @@ class FrameProcessor : public QObject {
     Q_PROPERTY(bool active READ active WRITE setActive NOTIFY activeChanged)
     Q_PROPERTY(double motionEnergy READ motionEnergy NOTIFY motionEnergyChanged)
     Q_PROPERTY(bool loggingEnabled READ loggingEnabled WRITE setLoggingEnabled NOTIFY loggingEnabledChanged)
+    Q_PROPERTY(int facesDetected READ facesDetected NOTIFY facesDetectedChanged)
 
 public:
     explicit FrameProcessor(QObject *parent = nullptr);
@@ -29,6 +31,7 @@ public:
     bool loggingEnabled() const { return m_loggingEnabled; }
     void setLoggingEnabled(bool enabled);
 
+    int facesDetected() const { return m_facesDetected; }
 public slots:
     void processFrame(const QVideoFrame& frame);
 
@@ -37,14 +40,24 @@ signals:
     void activeChanged();
     void motionEnergyChanged();
     void loggingEnabledChanged();
+    void facesDetectedChanged();
 
 private:
     QVideoSink* m_sink = nullptr;
-    bool m_active = true;
+    bool m_active = false;
     double m_motionLevel = 0.0;
     bool m_loggingEnabled = true;
     // Sentry Mode State
     cv::Mat m_prevFrame;
+    // Face Recognition
+    int m_facesDetected = 0;
+    // OpenCV Classifier
+    cv::CascadeClassifier m_faceClassifier;
+    bool m_classifierLoaded = false;
+
+
+    // Helper to extract XML from APK to Disk
+    void loadClassifier();
 };
 
 #endif // FRAMEPROCESSOR_H

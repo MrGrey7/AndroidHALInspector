@@ -43,6 +43,7 @@ qt_add_qml_module(AndroidHALInspector
     URI "com.systems.inspector"
     VERSION 1.0
     QML_FILES content/Main.qml
+    RESOURCES content/assets/haarcascade_frontalface_default.xml
 )
 
 # Linking

@@ -99,5 +99,35 @@ Window {
                 }
             }
         }
+
+        // 3. Face Detection
+        // Face Detection Alert
+        Rectangle {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.margins: 20
+            width: 150
+            height: 50
+            color: processor.facesDetected > 0 ? "#AAFF0000" : "#AA000000" // Red if face found
+            radius: 10
+            visible: processor.active
+
+            Row {
+                anchors.centerIn: parent
+                spacing: 10
+
+                Text {
+                    text: "FACES:"
+                    color: "white"
+                    font.bold: true
+                }
+                Text {
+                    text: processor.facesDetected
+                    color: "white"
+                    font.bold: true
+                    font.pixelSize: 20
+                }
+            }
+        }
     }
 }
