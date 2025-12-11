@@ -17,7 +17,7 @@ It bridges the gap between the high-level Qt Multimedia framework and the low-le
 ## 🛠 Tech Stack
 
 *   **Language:** C++17
-*   **Framework:** Qt 6.8 (Quick / Multimedia)
+*   **Framework:** Qt 6.10 (Quick / Multimedia)
 *   **Build System:** CMake
 *   **Target:** Android ARM64-v8a (API 34)
 
@@ -38,7 +38,7 @@ void processFrame(const QVideoFrame& frame) {
 ## 🚀 Build Instructions
 
 1.  **Requirements:**
-    *   Qt 6.6+ (with Android ARM64 kit).
+    *   Qt 6.8+ (with Android ARM64 kit).
     *   Android SDK / NDK (r26+).
     *   (Optional) OpenCV Android SDK.
 

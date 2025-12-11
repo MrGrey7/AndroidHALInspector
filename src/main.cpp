@@ -17,11 +17,11 @@ int main(int argc, char *argv[])
     qDebug() << "--------------------------------";
 
     // Register C++ class so QML can see it
-    qmlRegisterType<FrameProcessor>("com.mrgrey.systems", 1, 0, "FrameProcessor");
+    qmlRegisterType<FrameProcessor>("com.systems.inspector", 1, 0, "FrameProcessor");
 
     QQmlApplicationEngine engine;
     // URI "com.mrgrey.systems" + File "Main.qml" becomes:
-    const QUrl url(u"qrc:/com/mrgrey/systems/content/Main.qml"_qs);
+    const QUrl url(u"qrc:/com/systems/inspector/content/Main.qml"_qs);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [url](QObject *obj, const QUrl &objUrl) {
                          if (!obj && url == objUrl)

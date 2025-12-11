@@ -1,12 +1,12 @@
 import QtQuick
 import QtMultimedia
-import com.mrgrey.systems 1.0
+import com.systems.inspector 1.0
 
 Window {
     width: 640
     height: 480
     visible: true
-    title: "Rivian HAL Inspector"
+    title: "Android HAL Inspector"
     color: "black"
 
     CaptureSession {
