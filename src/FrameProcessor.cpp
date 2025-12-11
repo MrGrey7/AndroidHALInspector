@@ -65,37 +65,53 @@ void FrameProcessor::processFrame(const QVideoFrame& frame) {
 
             // 3. OPTIMIZATION: Downscale
             // Processing 1080p is slow. 320x240 is fast.
-            cv::Mat smallFrame;
+            cv::Mat smallUnrotatedFrame;
             // Calculate aspect-ratio correct scale
             double scale = 320.0 / clone.width();
-            cv::resize(currentY, smallFrame, cv::Size(), scale, scale, cv::INTER_LINEAR);
+            cv::resize(currentY, smallUnrotatedFrame, cv::Size(), scale, scale, cv::INTER_LINEAR);
 
+
+            cv::Mat rotatedSmallFrame;
+            cv::rotate(smallUnrotatedFrame, rotatedSmallFrame, cv::ROTATE_90_CLOCKWISE);
 
             // 3. Equalize Histogram (Improves detection in bad lighting)
-            cv::equalizeHist(smallFrame, smallFrame);
+            cv::equalizeHist(rotatedSmallFrame, rotatedSmallFrame);
 
             // 4. Detect Faces
             std::vector<cv::Rect> faces;
             if (m_classifierLoaded) {
-                // scaleFactor=1.1, minNeighbors=3, minSize=30x30
-                m_faceClassifier.detectMultiScale(smallFrame, faces, 1.1, 3, 0, cv::Size(30, 30));
+                // Relaxed parameters for testing: scale 1.2, neighbors 2
+                m_faceClassifier.detectMultiScale(rotatedSmallFrame, faces, 1.2, 2, 0, cv::Size(30, 30));
             }
 
-            // 5. Update UI
-            if (m_facesDetected != faces.size()) {
-                m_facesDetected = faces.size();
-                emit facesDetectedChanged();
-                if (m_loggingEnabled && m_facesDetected > 0) {
-                    qDebug() << "[Sentry] Faces Detected:" << m_facesDetected;
-                }
+            // 3. Update UI (Systems Logic)
+            if (!faces.empty()) {
+                // Get the first face
+                cv::Rect r = faces[0];
+
+                // Normalize coordinates to 0.0 - 1.0 range based on the SMALL frame size
+                // This makes the UI code resolution-independent
+                qreal nx = (qreal)r.x / rotatedSmallFrame.cols;
+                qreal ny = (qreal)r.y / rotatedSmallFrame.rows;
+                qreal nw = (qreal)r.width / rotatedSmallFrame.cols;
+                qreal nh = (qreal)r.height / rotatedSmallFrame.rows;
+
+                m_faceRect = QRectF(nx, ny, nw, nh);
+            } else {
+                // Reset if lost
+                m_faceRect = QRectF(0, 0, 0, 0);
             }
+
+            // Always emit to update UI (clearing the box if no face)
+            emit faceRectChanged();
+            emit facesDetectedChanged();
 
 
 
             // 4. Motion Detection Logic
             if (!m_prevFrame.empty()) {
                 cv::Mat diff;
-                cv::absdiff(smallFrame, m_prevFrame, diff);
+                cv::absdiff(rotatedSmallFrame, m_prevFrame, diff);
                 cv::threshold(diff, diff, 30, 255, cv::THRESH_BINARY);
 
                 int changedPixels = cv::countNonZero(diff);
@@ -124,7 +140,7 @@ void FrameProcessor::processFrame(const QVideoFrame& frame) {
             }
 
             // Store for next frame (Deep Copy required)
-            smallFrame.copyTo(m_prevFrame);
+            rotatedSmallFrame.copyTo(m_prevFrame);
         }
         clone.unmap();
     }

@@ -16,6 +16,7 @@ class FrameProcessor : public QObject {
     Q_PROPERTY(double motionEnergy READ motionEnergy NOTIFY motionEnergyChanged)
     Q_PROPERTY(bool loggingEnabled READ loggingEnabled WRITE setLoggingEnabled NOTIFY loggingEnabledChanged)
     Q_PROPERTY(int facesDetected READ facesDetected NOTIFY facesDetectedChanged)
+    Q_PROPERTY(QRectF faceRect READ faceRect NOTIFY faceRectChanged)
 
 public:
     explicit FrameProcessor(QObject *parent = nullptr);
@@ -32,6 +33,7 @@ public:
     void setLoggingEnabled(bool enabled);
 
     int facesDetected() const { return m_facesDetected; }
+    QRectF faceRect() const { return m_faceRect; }
 public slots:
     void processFrame(const QVideoFrame& frame);
 
@@ -41,6 +43,7 @@ signals:
     void motionEnergyChanged();
     void loggingEnabledChanged();
     void facesDetectedChanged();
+    void faceRectChanged();
 
 private:
     QVideoSink* m_sink = nullptr;
@@ -51,6 +54,7 @@ private:
     cv::Mat m_prevFrame;
     // Face Recognition
     int m_facesDetected = 0;
+    QRectF m_faceRect;
     // OpenCV Classifier
     cv::CascadeClassifier m_faceClassifier;
     bool m_classifierLoaded = false;
