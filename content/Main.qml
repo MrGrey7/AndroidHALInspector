@@ -44,12 +44,53 @@ Window {
 
             // Optional: Label
             Text {
-                text: "TARGET"
+                text: "FACE"
                 color: "#00FF00"
                 font.bold: true
                 font.pixelSize: 12
                 anchors.bottom: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
+            }
+        }
+
+        Item {
+            anchors.fill: parent
+            visible: processor.active
+
+            Repeater {
+                model: processor.detectedRects.length
+
+                delegate: Rectangle {
+                    // Fetch data from lists by index
+                    property rect r: processor.detectedRects[index]
+                    property string l: processor.detectedLabels[index]
+
+                    x: r.x * output.width
+                    y: r.y * output.height
+                    width: r.width * output.width
+                    height: r.height * output.height
+
+                    color: "transparent"
+                    border.color: "#00FFFF" // Cyan for objects
+                    border.width: 3
+
+                    // Label Background
+                    Rectangle {
+                        color: "#7700FF"
+                        width: labelText.width + 10
+                        height: labelText.height + 4
+                        anchors.bottom: parent.top
+                        anchors.left: parent.left
+
+                        Text {
+                            id: labelText
+                            anchors.centerIn: parent
+                            text: l
+                            font.bold: true
+                            color: "black"
+                        }
+                    }
+                }
             }
         }
     }

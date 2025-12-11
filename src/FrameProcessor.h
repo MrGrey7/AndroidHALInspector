@@ -4,8 +4,10 @@
 #include <QObject>
 #include <QVideoSink>
 #include <QVideoFrame>
+#include <QVariantList>
 #include <opencv2/objdetect.hpp>
 #include <opencv2/core.hpp>
+#include <opencv2/dnn.hpp>
 
 class FrameProcessor : public QObject {
     Q_OBJECT
@@ -17,6 +19,8 @@ class FrameProcessor : public QObject {
     Q_PROPERTY(bool loggingEnabled READ loggingEnabled WRITE setLoggingEnabled NOTIFY loggingEnabledChanged)
     Q_PROPERTY(int facesDetected READ facesDetected NOTIFY facesDetectedChanged)
     Q_PROPERTY(QRectF faceRect READ faceRect NOTIFY faceRectChanged)
+    Q_PROPERTY(QVariantList detectedRects READ detectedRects NOTIFY detectionsChanged)
+    Q_PROPERTY(QVariantList detectedLabels READ detectedLabels NOTIFY detectionsChanged)
 
 public:
     explicit FrameProcessor(QObject *parent = nullptr);
@@ -34,6 +38,9 @@ public:
 
     int facesDetected() const { return m_facesDetected; }
     QRectF faceRect() const { return m_faceRect; }
+
+    QVariantList detectedRects() const { return m_detectedRects; }
+    QVariantList detectedLabels() const { return m_detectedLabels; }
 public slots:
     void processFrame(const QVideoFrame& frame);
 
@@ -44,6 +51,7 @@ signals:
     void loggingEnabledChanged();
     void facesDetectedChanged();
     void faceRectChanged();
+    void detectionsChanged();
 
 private:
     QVideoSink* m_sink = nullptr;
@@ -62,6 +70,25 @@ private:
 
     // Helper to extract XML from APK to Disk
     void loadClassifier();
+
+
+    // DNN state
+    cv::dnn::Net m_net;
+    bool m_netLoaded = false;
+    QVariantList m_detectedRects;
+    QVariantList m_detectedLabels;
+
+    // Helper to extract assets
+    QString extractAsset(const QString& name);
+    void loadNetwork();
+
+    // Class names lookup (0=Background, 1=Plane, 2=Bicycle...)
+    const std::vector<QString> m_classNames = {
+        "Background", "Plane", "Bicycle", "Bird", "Boat",
+        "Bottle", "Bus", "Car", "Cat", "Chair", "Cow",
+        "Table", "Dog", "Horse", "Motorbike", "Person",
+        "PottedPlant", "Sheep", "Sofa", "Train", "TV"
+    };
 };
 
 #endif // FRAMEPROCESSOR_H
