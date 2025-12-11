@@ -23,65 +23,55 @@ Window {
             id: processor
             videoSink: output.videoSink
             active: true
-            loggingEnabled: true // Default On
+            loggingEnabled: true
+            faceDetectionEnabled: true
+            objectDetectionEnabled: true
         }
 
         // --- FACE TRACKING BOX ---
         Rectangle {
             id: faceBox
-            // Convert normalized coords (0.0-1.0) to screen pixels
             x: processor.faceRect.x * output.width
             y: processor.faceRect.y * output.height
             width: processor.faceRect.width * output.width
             height: processor.faceRect.height * output.height
-
             color: "transparent"
-            border.color: "#00FF00" // Green Box
+            border.color: "#00AA00"
             border.width: 3
+            visible: width > 0 && processor.active && processor.faceDetectionEnabled
 
-            // Only show if width > 0
-            visible: width > 0 && processor.active
-
-            // Optional: Label
             Text {
                 text: "FACE"
-                color: "#00FF00"
+                color: "#00AA00"
                 font.bold: true
-                font.pixelSize: 12
+                font.pixelSize: 14
                 anchors.bottom: parent.top
                 anchors.horizontalCenter: parent.horizontalCenter
             }
         }
 
+        // --- OBJECT DETECTION OVERLAY ---
         Item {
             anchors.fill: parent
-            visible: processor.active
-
+            visible: processor.active && processor.objectDetectionEnabled
             Repeater {
                 model: processor.detectedRects.length
-
                 delegate: Rectangle {
-                    // Fetch data from lists by index
                     property rect r: processor.detectedRects[index]
                     property string l: processor.detectedLabels[index]
-
                     x: r.x * output.width
                     y: r.y * output.height
                     width: r.width * output.width
                     height: r.height * output.height
-
                     color: "transparent"
-                    border.color: "#00FFFF" // Cyan for objects
+                    border.color: "#55FFFF"
                     border.width: 3
-
-                    // Label Background
                     Rectangle {
-                        color: "#7700FF"
+                        color: "#55FFFF"
                         width: labelText.width + 10
                         height: labelText.height + 4
                         anchors.bottom: parent.top
                         anchors.left: parent.left
-
                         Text {
                             id: labelText
                             anchors.centerIn: parent
@@ -100,102 +90,90 @@ Window {
         anchors.fill: parent
         color: "transparent"
 
-        // 1. Motion Energy Bar (Left Side)
-        // Kept the same
-        Rectangle {
-            id: energyBarBackground
-            width: 30
+        // 1. Motion Energy Bar (Labeled)
+        Item {
+            width: 50
             height: 300
-            color: "#80000000"
-            border.color: "white"
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             anchors.margins: 20
             visible: processor.active
 
             Rectangle {
-                width: parent.width - 4
-                height: (parent.height - 4) * Math.min(processor.motionEnergy * 5, 1.0)
-                color: processor.motionEnergy > 0.1 ? "red" : "#00ff00"
-                anchors.bottom: parent.bottom
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottomMargin: 2
+                id: barBg
+                width: 20
+                height: parent.height
+                color: "#80000000"
+                border.color: "white"
+                anchors.centerIn: parent
+
+                Rectangle {
+                    width: parent.width - 4
+                    height: (parent.height - 4) * Math.min(processor.motionEnergy * 5, 1.0)
+                    color: processor.motionEnergy > 0.1 ? "red" : "#00ff00"
+                    anchors.bottom: parent.bottom
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottomMargin: 2
+                }
+            }
+
+            // Explicit Label
+            Text {
+                text: "Motion\nEnergy"
+                color: "white"
+                font.bold: true
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+                anchors.top: barBg.bottom
+                anchors.topMargin: 5
+                anchors.horizontalCenter: barBg.horizontalCenter
             }
         }
 
-        // 2. Control Panel (Lifted & Stacked)
+        // 2. Control Panel
         Rectangle {
             anchors.bottom: parent.bottom
-            // LIFT: Move up by 50px to clear Android Nav Bar
-            anchors.bottomMargin: 50
+            anchors.bottomMargin: 30 // Lifted
             width: parent.width
-            height: 120 // Taller to fit 2 buttons
+            height: 200
             color: "#CC000000"
 
             Column {
                 anchors.centerIn: parent
-                spacing: 10
+                spacing: 5
 
-                // Toggle 1: Sentry Processing (CPU load)
+                // Master Switch
                 Switch {
-                    text: "Sentry Processing (CV)"
+                    text: "MASTER: Processing"
                     checked: processor.active
                     onCheckedChanged: processor.active = checked
-
-                    contentItem: Text {
-                        text: parent.text
-                        color: parent.checked ? "#00ff00" : "gray"
-                        font.bold: true
-                        verticalAlignment: Text.AlignVCenter
-                        leftPadding: parent.indicator.width + 10
-                    }
+                    contentItem: Text { text: parent.text; color: parent.checked ? "#00ff00" : "gray"; font.bold: true; leftPadding: parent.indicator.width + 10; verticalAlignment: Text.AlignVCenter }
                 }
 
-                // Toggle 2: Console Logging (Noise control)
+                // Sub-Features
+                Switch {
+                    text: "Face Detection (Haar)"
+                    checked: processor.faceDetectionEnabled
+                    enabled: processor.active
+                    onCheckedChanged: processor.faceDetectionEnabled = checked
+                    contentItem: Text { text: parent.text; color: parent.checked ? "white" : "gray"; leftPadding: parent.indicator.width + 10; verticalAlignment: Text.AlignVCenter }
+                }
+
+                Switch {
+                    text: "Object Detection (DNN)"
+                    checked: processor.objectDetectionEnabled
+                    enabled: processor.active
+                    onCheckedChanged: processor.objectDetectionEnabled = checked
+                    contentItem: Text { text: parent.text; color: parent.checked ? "white" : "gray"; leftPadding: parent.indicator.width + 10; verticalAlignment: Text.AlignVCenter }
+                }
+
                 Switch {
                     text: "Console Logging"
                     checked: processor.loggingEnabled
                     onCheckedChanged: processor.loggingEnabled = checked
-
-                    contentItem: Text {
-                        text: parent.text
-                        color: parent.checked ? "#00aaff" : "gray"
-                        font.bold: true
-                        verticalAlignment: Text.AlignVCenter
-                        leftPadding: parent.indicator.width + 10
-                    }
+                    contentItem: Text { text: parent.text; color: parent.checked ? "#00aaff" : "gray"; leftPadding: parent.indicator.width + 10; verticalAlignment: Text.AlignVCenter }
                 }
             }
         }
-
-        // // 3. Face Detection
-        // // Face Detection Alert
-        // Rectangle {
-        //     anchors.top: parent.top
-        //     anchors.right: parent.right
-        //     anchors.margins: 20
-        //     width: 150
-        //     height: 50
-        //     color: processor.facesDetected > 0 ? "#AAFF0000" : "#AA000000" // Red if face found
-        //     radius: 10
-        //     visible: processor.active
-
-        //     Row {
-        //         anchors.centerIn: parent
-        //         spacing: 10
-
-        //         Text {
-        //             text: "FACES:"
-        //             color: "white"
-        //             font.bold: true
-        //         }
-        //         Text {
-        //             text: processor.facesDetected
-        //             color: "white"
-        //             font.bold: true
-        //             font.pixelSize: 20
-        //         }
-        //     }
-        // }
     }
 }

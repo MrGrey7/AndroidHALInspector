@@ -40,8 +40,6 @@ void FrameProcessor::setActive(bool active) {
     emit activeChanged();
 }
 
-double FrameProcessor::motionEnergy() const { return m_motionLevel; }
-
 QString FrameProcessor::extractAsset(const QString& name) {
     QString resourcePath = ":/com/systems/inspector/content/assets/" + name;
     QString targetPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/" + name;
@@ -79,6 +77,30 @@ void FrameProcessor::setLoggingEnabled(bool enabled) {
     m_loggingEnabled = enabled;
     emit loggingEnabledChanged();
 }
+
+void FrameProcessor::setFaceDetectionEnabled(bool enabled) {
+    if (m_faceDetectionEnabled == enabled) return;
+    m_faceDetectionEnabled = enabled;
+    if (m_faceDetectionEnabled) loadClassifier(); // Lazy load
+    else {
+        m_faceRect = QRectF(0,0,0,0);
+        emit faceRectChanged();
+    }
+    emit faceDetectionEnabledChanged();
+}
+
+void FrameProcessor::setObjectDetectionEnabled(bool enabled) {
+    if (m_objectDetectionEnabled == enabled) return;
+    m_objectDetectionEnabled = enabled;
+    if (m_objectDetectionEnabled) loadNetwork(); // Lazy load
+    else {
+        m_detectedRects.clear();
+        m_detectedLabels.clear();
+        emit detectionsChanged();
+    }
+    emit objectDetectionEnabledChanged();
+}
+
 
 void FrameProcessor::processFrame(const QVideoFrame& frame) {
     if (!m_active) return;
@@ -130,7 +152,7 @@ void FrameProcessor::processFrame(const QVideoFrame& frame) {
 
 
             // --- 3. FACE DETECTION (Medium - Every 5 frames) ---
-            if (frameCount % 5 == 0 && m_classifierLoaded) {
+            if (m_faceDetectionEnabled && frameCount % 5 == 0 && m_classifierLoaded) {
                 cv::Mat eqFrame;
                 cv::equalizeHist(rotatedY, eqFrame);
 
@@ -153,7 +175,7 @@ void FrameProcessor::processFrame(const QVideoFrame& frame) {
 
 
             // --- 4. OBJECT DETECTION (Heavy - Every 30 frames) ---
-            if (frameCount % 30 == 0 && m_netLoaded) {
+            if (m_objectDetectionEnabled && frameCount % 30 == 0 && m_netLoaded) {
                 // DNN needs Color (BGR). Convert only the small frame!
                 // Don't convert 1080p -> BGR, that's slow.
                 // We reconstruct BGR from the small Y (gray) ? No, we need color.
