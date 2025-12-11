@@ -26,8 +26,8 @@ This project serves as a proof-of-concept for **Edge Perception Architectures**.
 
 ### 2. Embedded Perception Stack (OpenCV NDK)
 *   **Deep Learning (DNN):** Integrated **MobileNet-SSD** (Caffe) via the OpenCV DNN module for real-time object detection (Person, Car, etc.).
+*   **Classical Face Tracking:** Integrated **Haar Cascade classifiers** for CPU-efficient face tracking. Solved the "Portrait/Landscape" sensor alignment mismatch by implementing a geometric rotation pipeline before inference.
 *   **Heuristic Sentry Mode:** Implemented a low-power **Motion Detection** algorithm using frame differencing and dynamic thresholding on downscaled Luma planes.
-*   **Sensor Orientation:** Solved the "Portrait/Landscape" sensor alignment mismatch by implementing a rotation pipeline before inference, ensuring coordinate space consistency between the neural network and the UI layer.
 
 ### 3. Systems Architecture
 *   **Pipeline Throttling:** Implemented a hierarchical execution model to manage thermal constraints:
